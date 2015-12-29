@@ -85,10 +85,10 @@ class juniper_vpn(object):
         self.br.set_handle_refresh(mechanize._http.HTTPRefreshProcessor(),
                                    max_time=1)
 
-        # Want debugging messages?
-        self.br.set_debug_http(True)
-        self.br.set_debug_redirects(True)
-        self.br.set_debug_responses(True)
+        if self.args.debug:
+            self.br.set_debug_http(True)
+            self.br.set_debug_redirects(True)
+            self.br.set_debug_responses(True)
 
         self.user_agent = 'Mozilla/5.0 (X11; U; Linux i686; en-US; ' + \
                           'rv:1.9.0.1) Gecko/2008071615 Fedora/3.0.1-1.fc9' + \
@@ -257,6 +257,8 @@ if __name__ == "__main__":
                         help='Config file')
     parser.add_argument('-s', '--stdin', type=str,
                         help="String to pass to action's stdin")
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help='enable debug')
     parser.add_argument('action', nargs=argparse.REMAINDER,
                         metavar='<action> [<args...>]',
                         help='External command')
