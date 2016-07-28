@@ -113,6 +113,8 @@ class juniper_vpn(object):
         for form in self.br.forms():
             if form.name == 'frmLogin':
                 return 'login'
+            elif form.name == 'frmNextToken':
+                return 'nextToken'
             elif form.name == 'frmDefender':
                 return 'key'
             elif form.name == 'frmConfirmation':
@@ -130,6 +132,8 @@ class juniper_vpn(object):
                 self.action_tncc()
             elif action == 'login':
                 self.action_login()
+            elif action == 'nextToken':
+                self.action_nextToken()
             elif action == 'key':
                 self.action_key()
             elif action == 'continue':
@@ -191,6 +195,13 @@ class juniper_vpn(object):
         # self.br.form['realm'] = [realm]
         self.r = self.br.submit()
 
+    def action_nextToken(self):
+        password = getpass.getpass('Next Token:')
+
+        self.br.select_form(nr=0)
+        self.br.form['password'] = password
+        self.r = self.br.submit()
+
     def action_key(self):
         # Enter key
         self.needs_2factor = True
@@ -225,23 +236,33 @@ class juniper_vpn(object):
             arg = arg.replace('%DSID%', dsid).replace('%HOST%', self.args.host)
             action.append(arg)
 
-        p = subprocess.Popen(action, stdin=subprocess.PIPE)
+        try:
+            self.cprocess = subprocess.Popen(action, stdin=subprocess.PIPE)
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                print >> sys.stderr, 'binary %s not found' % action[0]
         if args.stdin is not None:
             stdin = args.stdin.replace('%DSID%', dsid)
             stdin = stdin.replace('%HOST%', self.args.host)
-            p.communicate(input=stdin)
+            self.cprocess.communicate(input=stdin)
         else:
-            ret = p.wait()
-        ret = p.returncode
+            ret = self.cprocess.wait()
+        ret = self.cprocess.returncode
 
         # Openconnect specific
         if ret == 2:
             self.cj.clear(self.args.host, '/', 'DSID')
             self.r = self.br.open(self.r.geturl())
 
+    def cleanup(self):
+        try:
+            self.cprocess.send_signal(signal.SIGINT)
+        except OSError:
+            pass
 
-def cleanup():
-    os.killpg(0, signal.SIGTERM)
+
+def handler(signum, frame):
+    sys.exit(0)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(conflict_handler='resolve')
@@ -290,6 +311,8 @@ if __name__ == "__main__":
         print "--user, --host, and <action> are required parameters"
         sys.exit(1)
 
-    atexit.register(cleanup)
+    signal.signal(signal.SIGINT, handler)
+
     jvpn = juniper_vpn(args)
+    atexit.register(jvpn.cleanup)
     jvpn.run()
