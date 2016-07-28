@@ -291,22 +291,34 @@ class juniper_vpn(object):
             arg = arg.replace('%DSID%', dsid).replace('%HOST%', self.args.host)
             action.append(arg)
 
-        p = subprocess.Popen(action, stdin=subprocess.PIPE)
+        try:
+            self.cprocess = subprocess.Popen(action, stdin=subprocess.PIPE)
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                print >> sys.stderr, 'binary %s not found' % action[0]
         if args.stdin is not None:
             stdin = args.stdin.replace('%DSID%', dsid)
             stdin = stdin.replace('%HOST%', self.args.host)
-            p.communicate(input = stdin)
+            self.cprocess.communicate(input=stdin)
         else:
-            ret = p.wait()
-        ret = p.returncode
+            ret = self.cprocess.wait()
+        ret = self.cprocess.returncode
 
         # Openconnect specific
         if ret == 2:
             self.cj.clear(self.args.host, '/', 'DSID')
             self.r = self.br.open(self.r.geturl())
 
-def cleanup():
-    os.killpg(0, signal.SIGTERM)
+    def cleanup(self):
+        try:
+            self.cprocess.send_signal(signal.SIGINT)
+        except OSError:
+            pass
+
+
+def handler(signum, frame):
+    sys.exit(0)
+
 
 if __name__ == "__main__":
 
@@ -386,6 +398,8 @@ if __name__ == "__main__":
         print "--user, --host, and <action> are required parameters"
         sys.exit(1)
 
-    atexit.register(cleanup)
+    signal.signal(signal.SIGINT, handler)
+
     jvpn = juniper_vpn(args)
+    atexit.register(jvpn.cleanup)
     jvpn.run()
