@@ -22,6 +22,7 @@ import platform
 import socket
 import netifaces
 import datetime
+import re
 
 debug = False
 
@@ -241,9 +242,40 @@ class juniper_vpn(object):
         self.r = self.br.submit()
 
     def action_continue(self):
-        # Yes, I want to terminate the existing connection
+        # The Juniper VPN has HTML syntax errors that keep the
+        # mechanize parser from being able to properly parse the html
+        # So we pull the HTML, fix the one critical error, and
+        # recreate the request
+        update_response = self.br.response()
+        html = update_response.get_data().replace(
+            '<td><input id="postfixSID_1" type="checkbox" '
+            'onclick="checkSelected()",  name="postfixSID"',
+            '<td><input id="postfixSID_1" type="checkbox" '
+            'onclick="checkSelected()"  name="postfixSID"')
+        headers=re.findall(r"(?P<name>.*?): (?P<value>.*?)\r\n",
+                           str(update_response.info()))
+        response = mechanize.make_response(html, headers,
+                                           update_response.geturl(),
+                                           update_response.code,
+                                           update_response.msg)
+        self.r = response
+        self.br.set_response(response)
+
+        # sometimes only one connection can be active at a time,
+        # force log out other sessions. Find the checkbox, click it
+        # then remove the disable from the submit button
         self.br.select_form(nr=0)
-        self.r = self.br.submit()
+        print "Terminating existing session!"
+
+        check_box_control = self.br.find_control(name='postfixSID')
+        close_selected_session = self.br.find_control(name='btnContinue')
+        # flip the selection on
+        for item in check_box_control.items:
+            item.selected = True
+            # remove disabled from close sessions
+        close_selected_session.disabled = False
+        # now submit correct button
+        self.r = self.br.submit(name='btnContinue')
 
     def action_connect(self):
         now = time.time()
