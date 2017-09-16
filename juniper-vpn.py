@@ -335,6 +335,7 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--oath', type=str,
                         help='OATH key for two factor authentication (hex)')
     parser.add_argument('-c', '--config', type=str,
+                        default=os.path.expanduser('~/.juniper-vpn.conf'),
                         help='Config file')
     parser.add_argument('-s', '--stdin', type=str,
                         help="String to pass to action's stdin")
@@ -365,7 +366,7 @@ if __name__ == "__main__":
     if not len(args.action):
         args.action = None
 
-    if args.config is not None:
+    if os.path.isfile(args.config):
         config = ConfigParser.RawConfigParser()
         config.read(args.config)
         for arg in ['username', 'host', 'password', 'oath', 'action', 'stdin',
