@@ -292,16 +292,17 @@ class juniper_vpn(object):
             action.append(arg)
 
         try:
-            self.cprocess = subprocess.Popen(action, stdin=subprocess.PIPE)
+            if args.stdin is not None:
+                self.cprocess = subprocess.Popen(action, stdin=subprocess.PIPE)
+                stdin = args.stdin.replace('%DSID%', dsid)
+                stdin = stdin.replace('%HOST%', self.args.host)
+                self.cprocess.communicate(input=stdin)
+            else:
+                self.cprocess = subprocess.Popen(action)
+                ret = self.cprocess.wait()
         except OSError as e:
             if e.errno == errno.ENOENT:
                 print >> sys.stderr, 'binary %s not found' % action[0]
-        if args.stdin is not None:
-            stdin = args.stdin.replace('%DSID%', dsid)
-            stdin = stdin.replace('%HOST%', self.args.host)
-            self.cprocess.communicate(input=stdin)
-        else:
-            ret = self.cprocess.wait()
         ret = self.cprocess.returncode
 
         # Openconnect specific
