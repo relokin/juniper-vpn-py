@@ -312,7 +312,9 @@ class juniper_vpn(object):
 
     def cleanup(self):
         try:
-            self.cprocess.send_signal(signal.SIGINT)
+            print 'Disconnecting'
+            if hasattr(self, "cprocess"):
+                self.cprocess.send_signal(signal.SIGINT)
         except OSError:
             pass
 
