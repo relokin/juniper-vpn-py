@@ -23,6 +23,7 @@ import socket
 import netifaces
 import datetime
 import re
+import errno
 
 debug = False
 
@@ -303,6 +304,7 @@ class juniper_vpn(object):
         except OSError as e:
             if e.errno == errno.ENOENT:
                 print >> sys.stderr, 'binary %s not found' % action[0]
+            raise
         ret = self.cprocess.returncode
 
         # Openconnect specific
